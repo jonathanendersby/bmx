@@ -61,28 +61,29 @@ def check_security(request, script_slug):
     return script
 
 
-def build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors):
+def build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result):
     out = ""
 
-    out += "<h2>Script: %s</h2>" % script['executable']
-    out += "<h2>Return Code: %s</h2>" % returncode
-    out += "<h2>Output</h2>%s" % output
-    out += "<h2>OS Errors</h2>%s" % os_errors
-    out += "<h2>Subprocess Errors</h2>%s" % subprocess_errors
-    out += "<h2>BMX Errors:</h2>%s" % bmx_errors
+    out += "<tr><td><strong>Script:</strong></td><td>%s</td></tr>" % script['executable']
+    out += "<tr><td><strong>Result:</td><td>%s</td></tr>" % result
+    out += "<tr><td><strong>Return Code:</td><td>%s</td></tr>" % returncode
+    out += "<tr><td><strong>Output</td<td>>%s</td></tr>" % output
+    out += "<tr><td><strong>OS Errors</td><td>%s</td></tr>" % os_errors
+    out += "<tr><td><strong>Subprocess Errors</td><td>%s</td></tr>" % subprocess_errors
+    out += "<tr><td><strong>BMX Errors:</td<td>>%s</td></tr>" % bmx_errors
 
     return out
 
 
-def send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors):
+def send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result):
     request_url = 'https://api.mailgun.net/v2/{0}/messages'.format(settings.MAILGUN_SANDBOX)
-    html = build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors)
+    html = build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result)
 
     for email in script['email']:
         mg = requests.post(request_url, auth=('api', settings.MAILGUN_KEY), data={
             'from': settings.MAILGUN_FROM_ADDRESS,
             'to': email,
-            'subject': 'BMX: ',
+            'subject': 'BMX: %s ' % result,
             'html': html
         })
 
@@ -132,7 +133,7 @@ def endpoint(script_slug):
         if script_output:
             output.append(script_output)
 
-    send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors)
+    send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result)
 
     return result
 
