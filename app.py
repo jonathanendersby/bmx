@@ -41,49 +41,7 @@ def check_setting_sanity():
         raise DefaultAPIKeyStillConfiguredException('Please remove "SUPERSECUREAPIKEY" from your settings file.')
 
 
-def build_html_output(script, output, returncode, os_errors, subprocess_errors):
-    out = ""
-    print script
-
-    out += "<h2>Script: %s</h2>" % script['executable']
-    out += "<h2>Return Code: %s</h2>" % returncode
-    out += "<h2>Output</h2>%s" % output
-    out += "<h2>OS Errors</h2>%s" % os_errors
-    out += "<h2>Subprocess Errors</h2>%s" % subprocess_errors
-
-    return out
-
-
-def send_mail(script, output, returncode, os_errors, subprocess_errors):
-
-    request_url = 'https://api.mailgun.net/v2/{0}/messages'.format(settings.MAILGUN_SANDBOX)
-    html = build_html_output(script, output, returncode, os_errors, subprocess_errors)
-
-    for email in script['email']:
-        mg = requests.post(request_url, auth=('api', settings.MAILGUN_KEY), data={
-            'from': 'devops@io.co.za',
-            'to': email,
-            'subject': 'BMX: ',
-            'html': html
-        })
-
-        print 'Sending to %s' % email
-        print 'Status: {0}'.format(mg.status_code)
-        print 'Body:   {0}'.format(mg.text)
-
-
-@app.route('/execute/<script_slug>')
-def endpoint(script_slug):
-    output = []
-    returncode = None
-    script_output = None
-    os_errors = []
-    subprocess_errors = []
-
-    check_setting_sanity()
-
-    print 'sanity passed'
-
+def check_security(request, script_slug):
     # Check host
     if not settings.ALLOWED_HOSTS_ALL:
         if request.remote_addr not in settings.ALLOWED_HOSTS:
@@ -100,29 +58,83 @@ def endpoint(script_slug):
     if not script:
         raise UnknownScriptException('You are requesting a script that is not defined in SCRIPTS.')
 
+    return script
+
+
+def build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors):
+    out = ""
+
+    out += "<h2>Script: %s</h2>" % script['executable']
+    out += "<h2>Return Code: %s</h2>" % returncode
+    out += "<h2>Output</h2>%s" % output
+    out += "<h2>OS Errors</h2>%s" % os_errors
+    out += "<h2>Subprocess Errors</h2>%s" % subprocess_errors
+    out += "<h2>BMX Errors:</h2>%s" % bmx_errors
+
+    return out
+
+
+def send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors):
+    request_url = 'https://api.mailgun.net/v2/{0}/messages'.format(settings.MAILGUN_SANDBOX)
+    html = build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors)
+
+    for email in script['email']:
+        mg = requests.post(request_url, auth=('api', settings.MAILGUN_KEY), data={
+            'from': settings.MAILGUN_FROM_ADDRESS,
+            'to': email,
+            'subject': 'BMX: ',
+            'html': html
+        })
+
+
+@app.route('/execute/<script_slug>')
+def endpoint(script_slug):
+    output = []
+    returncode = None
+    script_output = None
+    os_errors = []
+    bmx_errors = []
+    subprocess_errors = []
+    result = ""
+    sanity_passed = False
+    security_passed = False
+
+
     try:
-        script_output = subprocess.check_output(script['executable'], stderr=subprocess.STDOUT)
+        check_setting_sanity()
+        sanity_passed = True
+    except (AllowedHostsOverlapException, DefaultAPIKeyStillConfiguredException,) as e:
+        bmx_errors.append('Sanity failure: %s' % e.message)
 
-    except OSError as e:
-        os_errors.append(e)
-        returncode = 0
+    try:
+        script = check_security(request, script_slug)
+        security_passed = True
 
-    except subprocess.CalledProcessError as e:
-        returncode = e.returncode
-        subprocess_errors.append(e.output)
+    except (UnallowedHostException, APIKeyException, UnknownScriptException) as e:
+        bmx_errors.append('Security failure: %s' % e.message)
 
-    if script_output:
-        output.append(script_output)
+    if sanity_passed and security_passed:
+        # Run the script
+        try:
+            script_output = subprocess.check_output(script['executable'], stderr=subprocess.STDOUT)
+            result = "SUCCESS"
 
-    print "== RESULT =="
-    print "RETURN_CODE: %s" % returncode
-    print "OUTPUT: %s" % output
-    print "OS_ERRORS: %s" % os_errors
-    print "SUBPROCESS_ERRORS: %s" % subprocess_errors
+        except OSError as e:
+            os_errors.append(e)
+            returncode = 0
+            result = "SUCCESS WITH ERRORS"
 
-    send_mail(script, output, returncode, os_errors, subprocess_errors)
+        except subprocess.CalledProcessError as e:
+            returncode = e.returncode
+            subprocess_errors.append(e.output)
+            result = "SUCCESS WITH ERRORS"
 
-    return "complete"
+        if script_output:
+            output.append(script_output)
+
+    send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors)
+
+    return result
 
 
 if __name__ == '__main__':
