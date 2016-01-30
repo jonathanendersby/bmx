@@ -62,15 +62,16 @@ def check_security(request, script_slug):
 
 
 def build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result):
-    out = ""
+    out = "<table>"
 
-    out += "<tr><td><strong>Script:</strong></td><td>%s</td></tr>" % script['executable']
-    out += "<tr><td><strong>Result:</td><td>%s</td></tr>" % result
-    out += "<tr><td><strong>Return Code:</td><td>%s</td></tr>" % returncode
-    out += "<tr><td><strong>Output</td<td>>%s</td></tr>" % output
-    out += "<tr><td><strong>OS Errors</td><td>%s</td></tr>" % os_errors
-    out += "<tr><td><strong>Subprocess Errors</td><td>%s</td></tr>" % subprocess_errors
-    out += "<tr><td><strong>BMX Errors:</td<td>>%s</td></tr>" % bmx_errors
+    out += "<tr><td><strong>Script</strong></td><td>%s</td></tr>" % script['executable']
+    out += "<tr><td><strong>Result</strong></td><td>%s</td></tr>" % result
+    out += "<tr><td><strong>Return Code</strong></td><td>%s</td></tr>" % returncode
+    out += "<tr><td><strong>Output</strong></td><td>%s</td></tr>" % output
+    out += "<tr><td><strong>OS Errors</strong></td><td>%s</td></tr>" % os_errors
+    out += "<tr><td><strong>Subprocess Errors</strong></td><td>%s</td></tr>" % subprocess_errors
+    out += "<tr><td><strong>BMX Errors</strong></td><td>%s</td></tr>" % bmx_errors
+    out += "</table>"
 
     return out
 
