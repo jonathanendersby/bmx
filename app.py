@@ -7,7 +7,7 @@ import settings
 
 
 app = Flask(__name__)
-
+app.config.from_pyfile('config.py')
 
 class AllowedHostsOverlapException(Exception):
     pass
@@ -61,16 +61,21 @@ def check_security(request, script_slug):
     return script
 
 
+def to_friendly(in_list):
+    out = ''.join(in_list)
+    out = out.replace('\n','<br />')
+    return out
+
+
 def build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result):
     out = "<table>"
-
     out += "<tr><td><strong>Script</strong></td><td>%s</td></tr>" % script['executable']
     out += "<tr><td><strong>Result</strong></td><td>%s</td></tr>" % result
     out += "<tr><td><strong>Return Code</strong></td><td>%s</td></tr>" % returncode
-    out += "<tr><td><strong>Output</strong></td><td>%s</td></tr>" % output
-    out += "<tr><td><strong>OS Errors</strong></td><td>%s</td></tr>" % os_errors
-    out += "<tr><td><strong>Subprocess Errors</strong></td><td>%s</td></tr>" % subprocess_errors
-    out += "<tr><td><strong>BMX Errors</strong></td><td>%s</td></tr>" % bmx_errors
+    out += "<tr><td><strong>Output</strong></td><td>%s</td></tr>" % "<br />".join(output).replace("\n", "<br />")
+    out += "<tr><td><strong>OS Errors</strong></td><td>%s</td></tr>" % to_friendly(os_errors)
+    out += "<tr><td><strong>Subprocess Errors</strong></td><td>%s</td></tr>" % to_friendly(subprocess_errors)
+    out += "<tr><td><strong>BMX Errors</strong></td><td>%s</td></tr>" % to_friendly(bmx_errors)
     out += "</table>"
 
     return out
@@ -89,7 +94,7 @@ def send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_erro
         })
 
 
-@app.route('/execute/<script_slug>')
+@app.route('/execute/<script_slug>', methods=['GET', 'POST'])
 def endpoint(script_slug):
     output = []
     returncode = None
@@ -100,13 +105,14 @@ def endpoint(script_slug):
     result = ""
     sanity_passed = False
     security_passed = False
-
+    script = None
 
     try:
         check_setting_sanity()
         sanity_passed = True
     except (AllowedHostsOverlapException, DefaultAPIKeyStillConfiguredException,) as e:
         bmx_errors.append('Sanity failure: %s' % e.message)
+        result = e.message
 
     try:
         script = check_security(request, script_slug)
@@ -114,8 +120,9 @@ def endpoint(script_slug):
 
     except (UnallowedHostException, APIKeyException, UnknownScriptException) as e:
         bmx_errors.append('Security failure: %s' % e.message)
+        result = e.message
 
-    if sanity_passed and security_passed:
+    if script and sanity_passed and security_passed:
         # Run the script
         try:
             script_output = subprocess.check_output(script['executable'], stderr=subprocess.STDOUT)
@@ -134,7 +141,10 @@ def endpoint(script_slug):
         if script_output:
             output.append(script_output)
 
-    send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result)
+	send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result)
+
+    #if script is None:
+    #    result = "INVALID SCRIPT"
 
     return result
 
