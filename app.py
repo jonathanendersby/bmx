@@ -26,6 +26,16 @@ def execute(script_slug):
     security_passed = False
     script = None
 
+    if request.args.get('actor'):
+        # Looks like a call from BitBucket
+        actor = request.args.get('actor').get('display_name')
+        repo = request.args.get('repository').get('name')
+        link = request.args.get('push').get('changes').get('links').get('html')
+
+        print "actor: %s" % actor
+        print "repo: %s" % repo
+        print "link: %s" % link
+
     try:
         check_setting_sanity()
         sanity_passed = True
