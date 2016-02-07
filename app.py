@@ -1,6 +1,7 @@
 from flask import Flask
 from flask import request
 import subprocess
+import json
 
 from utils import *
 
@@ -25,16 +26,27 @@ def execute(script_slug):
     sanity_passed = False
     security_passed = False
     script = None
+    print '--- start ---'
+    print request.data
+    data = json.loads(request.data)
+    print data
+    print data.get('actor')
+    print '-------------'
 
-    if request.args.get('actor'):
+    if data.get('actor'):
+	links = []
+
         # Looks like a call from BitBucket
-        actor = request.args.get('actor').get('display_name')
-        repo = request.args.get('repository').get('name')
-        link = request.args.get('push').get('changes').get('links').get('html')
+        actor = data.get('actor').get('display_name')
+        repo = data.get('repository').get('name')
+        changes = data.get('push').get('changes')
+
+	for change in changes:
+            links.append(change.get('links').get('html').get('href'))
 
         print "actor: %s" % actor
         print "repo: %s" % repo
-        print "link: %s" % link
+        print "links: %s" % links
 
     try:
         check_setting_sanity()
