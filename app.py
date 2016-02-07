@@ -9,6 +9,7 @@ import settings
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 
+
 class AllowedHostsOverlapException(Exception):
     pass
 
@@ -68,14 +69,24 @@ def to_friendly(in_list):
 
 
 def build_html_output(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result):
-    out = "<table>"
-    out += "<tr><td><strong>Script</strong></td><td>%s</td></tr>" % script['executable']
-    out += "<tr><td><strong>Result</strong></td><td>%s</td></tr>" % result
-    out += "<tr><td><strong>Return Code</strong></td><td>%s</td></tr>" % returncode
-    out += "<tr><td><strong>Output</strong></td><td>%s</td></tr>" % "<br />".join(output).replace("\n", "<br />")
-    out += "<tr><td><strong>OS Errors</strong></td><td>%s</td></tr>" % to_friendly(os_errors)
-    out += "<tr><td><strong>Subprocess Errors</strong></td><td>%s</td></tr>" % to_friendly(subprocess_errors)
-    out += "<tr><td><strong>BMX Errors</strong></td><td>%s</td></tr>" % to_friendly(bmx_errors)
+
+    output = ''.join(output).replace("\n", "<br />")
+
+    td1_pre = "<tr><td style='border:1px solid #7A7A7A; vertical-align:top; padding-bottom:10px; padding-top:10px; " \
+              "padding-left:5px; padding-right:10px;'><strong>"
+    td1_pst = "<strong></td>"
+    td2_pre = "<td style='border:1px solid #7A7A7A; padding-left:10px; padding-bottom:10px; padding-right:10px; " \
+              "padding-top:10px;'>"
+    td2_pst = "</td></tr>"
+
+    out = "<table style='border:1px solid #7A7A7A; border-collapse:collapse;'>"
+    out += "%s Script %s %s %s %s" % (td1_pre, td1_pst, td2_pre, script['executable'], td2_pst)
+    out += "%s Result %s %s %s %s" % (td1_pre, td1_pst, td2_pre, result, td2_pst)
+    out += "%s Return Code %s %s %s %s" % (td1_pre, td1_pst, td2_pre, returncode, td2_pst)
+    out += "%s Output %s %s %s %s" % (td1_pre, td1_pst, td2_pre, output, td2_pst)
+    out += "%s Subprocess Errors %s %s %s %s" % (td1_pre, td1_pst, td2_pre, to_friendly(subprocess_errors), td2_pst)
+    out += "%s OS Errors %s %s %s %s" % (td1_pre, td1_pst, td2_pre, to_friendly(os_errors), td2_pst)
+    out += "%s BMX Errors %s %s %s %s" % (td1_pre, td1_pst, td2_pre, to_friendly(bmx_errors), td2_pst)
     out += "</table>"
 
     return out
@@ -94,8 +105,13 @@ def send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_erro
         })
 
 
+@app.route('/')
+def landing():
+    return "This is bmx."
+
+
 @app.route('/execute/<script_slug>', methods=['GET', 'POST'])
-def endpoint(script_slug):
+def execute(script_slug):
     output = []
     returncode = None
     script_output = None
@@ -141,7 +157,7 @@ def endpoint(script_slug):
         if script_output:
             output.append(script_output)
 
-	send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result)
+    send_mail(script, output, returncode, os_errors, subprocess_errors, bmx_errors, result)
 
     #if script is None:
     #    result = "INVALID SCRIPT"
