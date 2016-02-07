@@ -14,7 +14,7 @@ SCRIPTS = {'redeploy': {
 
 MAILGUN_KEY = 'key-yoursuperawesomekeyhere'
 MAILGUN_SANDBOX = 'sandbox0b08fexxxxxxxxxx9ae95fec5e.mailgun.org'
-MAILGUN_FROM_ADDRESS = 'foo@bar.com'
+MAILGUN_FROM_ADDRESS = 'Some Name <foo@bar.com>'
 
 try:
     from local_settings import *
